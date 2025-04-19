@@ -7,6 +7,7 @@ from matplotlib.widgets import Button
 
 # Global variable to control the simulation
 paused = False
+wraparound = True
 
 
 def toggle_pause(event):
@@ -75,7 +76,8 @@ def update_visualization(im, matrix):
 
 def block_step(matrix, iteration):
     """
-    Does the algorithm described in the exercise. without wraparound.
+    Does the algorithm described in the exercise.
+    we take blocks of 2X2 starting from the bottom right corner of each 2X2
 
     Args:
         matrix (np.ndarray): The current state of the matrix.
@@ -87,94 +89,45 @@ def block_step(matrix, iteration):
     new_matrix = matrix.copy()
     n = new_matrix.shape[0]
     m = new_matrix.shape[1]
-    block_start = 1 - (iteration % 2)  # Start with the first or second block
-
-    # Iterate over each first cell in a matrix of 2x2 blocks
-    for i in range(block_start, n - block_start, 2):
-        for j in range(block_start, m - block_start, 2):
-            # Count the number of 1s in the neighborhood (4 directions)
-            count = (
-                new_matrix[i, j]
-                + new_matrix[i, j + 1]
-                + new_matrix[i + 1, j + 1]
-                + new_matrix[i + 1, j]
-            )
-            # Apply rules based on count
-            if count == 0 or count == 1 or count == 4:  # 0, 1, or 4 ones -> flip all
-                new_matrix[i, j] = 1 - new_matrix[i, j]
-                new_matrix[i, j + 1] = 1 - new_matrix[i, j + 1]
-                new_matrix[i + 1, j] = 1 - new_matrix[i + 1, j]
-                new_matrix[i + 1, j + 1] = 1 - new_matrix[i + 1, j + 1]
-            elif count == 2:
-                continue  # No change needed for 2 ones
-            elif count == 3:  # 3 ones -> flip all and then rotate in 180 degrees
-                new_matrix[i, j] = 1 - new_matrix[i, j]
-                new_matrix[i, j + 1] = 1 - new_matrix[i, j + 1]
-                new_matrix[i + 1, j] = 1 - new_matrix[i + 1, j]
-                new_matrix[i + 1, j + 1] = 1 - new_matrix[i + 1, j + 1]
-                # Rotate 180 degrees
-                new_matrix[i, j], new_matrix[i + 1, j + 1] = (
-                    new_matrix[i + 1, j + 1],
-                    new_matrix[i, j],
-                )
-                new_matrix[i, j + 1], new_matrix[i + 1, j] = (
-                    new_matrix[i + 1, j],
-                    new_matrix[i, j + 1],
-                )
-
-    return new_matrix
-
-def block_step_wraparound(matrix, iteration):
-    """
-    Does the algorithm described in the exercise. with wraparound.
-
-    Args:
-        matrix (np.ndarray): The current state of the matrix.
-        iteration (int): The current iteration number.
-    Returns:
-        np.ndarray: a new matrix of the next phase.
-    """
-    # Important: Work on a copy to avoid modifying the input matrix directly
-    new_matrix = matrix.copy()
-    n = new_matrix.shape[0]
-    m = new_matrix.shape[1]
-    block_start = 1 - (iteration % 2)  # Start with the first or second block
-
-    # Iterate over each first cell in a matrix of 2x2 blocks
-    for i in range(block_start, n, 2):
+    if(n < 2 or m < 2):
+        return new_matrix
+    
+    block_start = (iteration % 2) # blue lines start from (1,1) and red from (0,0)
+    # Iterate over each bottom right corner in a matrix of 2x2 blocks
+    for i in range(block_start, n , 2):
         for j in range(block_start, m, 2):
+            if(not wraparound and ((i-1) < 0 or (j-1)<0)):
+                continue
+            
+            grid_Cells = [(i, j), ((i-1)%n, j), (i, (j-1)%m), ((i-1)%n, (j-1)%m)]
             # Count the number of 1s in the neighborhood (4 directions)
-            count = (
-                new_matrix[i, j]
-                + new_matrix[i, (j + 1) % m]
-                + new_matrix[(i + 1) % n, (j + 1) % m]
-                + new_matrix[(i + 1) % n, j]
-            )
+            count = 0
+            for cell in grid_Cells:
+                count += new_matrix[cell]
+
             # Apply rules based on count
             if count == 0 or count == 1 or count == 4:  # 0, 1, or 4 ones -> flip all
-                new_matrix[i, j] = 1 - new_matrix[i, j]
-                new_matrix[i, (j + 1) % m] = 1 - new_matrix[i, (j + 1) % m]
-                new_matrix[(i + 1) % n, j] = 1 - new_matrix[(i + 1) % n, j]
-                new_matrix[(i + 1) % n, (j + 1) % m] = 1 - new_matrix[(i + 1) % n, (j + 1) % m]
+                for cell in grid_Cells:
+                    new_matrix[cell] = 1 - new_matrix[cell]
             elif count == 2:
                 continue  # No change needed for 2 ones
             elif count == 3:  # 3 ones -> flip all and then rotate in 180 degrees
-                new_matrix[i, j] = 1 - new_matrix[i, j]
-                new_matrix[i, (j + 1) % m] = 1 - new_matrix[i, (j + 1) % m]
-                new_matrix[(i + 1) % n, j] = 1 - new_matrix[(i + 1) % n, j]
-                new_matrix[(i + 1) % n, (j + 1) % m] = 1 - new_matrix[(i + 1) % n, (j + 1) % m]
+                for cell in grid_Cells:
+                    new_matrix[cell] = 1 - new_matrix[cell]
                 # Rotate 180 degrees
-                new_matrix[i, j], new_matrix[(i + 1) % n, (j + 1) % m] = (
-                    new_matrix[(i + 1) % n, (j + 1) % m],
-                    new_matrix[i, j],
+                # cell 1 and cell 4 switch
+                # cell 2 and cell 3 switch
+                new_matrix[grid_Cells[0]], new_matrix[grid_Cells[3]] = (
+                    new_matrix[grid_Cells[3]],
+                    new_matrix[grid_Cells[0]]
                 )
-                new_matrix[i, (j + 1) % m], new_matrix[(i + 1) % n, j] = (
-                    new_matrix[(i + 1) % n, j],
-                    new_matrix[i, (j + 1) % m],
+
+                new_matrix[grid_Cells[1]], new_matrix[grid_Cells[2]] = (
+                    new_matrix[grid_Cells[2]],
+                    new_matrix[grid_Cells[1]],
                 )
 
     return new_matrix
-
 
 # --- Simulation Runner ---
 def run_simulation(
@@ -207,7 +160,8 @@ def run_simulation(
 
         # Simulation Loop
         print(f"\nStarting simulation with {algorithm_step_func.__name__}...")
-        for i in range(num_iterations):
+        # we start from odd round "1"
+        for i in range(1, num_iterations + 1):
             # Check if simulation is paused
             while paused:
                 plt.pause(0.1)
@@ -269,14 +223,16 @@ def run_simulation(
 # --- Main Execution Block ---
 if __name__ == "__main__":
     # 1. Parameters
-    matrix_size = 8  # asked for 100 x 100
+    matrix_size = 4  # asked for 100 x 100
     probability_one = 0.5  # e.g., 50% chance for a cell to start as 1
     num_iterations = 100  # Number of simulation steps
 
     # --- CHOOSE YOUR ALGORITHM HERE ---
-    # Assign the function name of the algorithm you want to run
-    algorithm_to_run = block_step_wraparound
-    # algorithm_to_run = do_nothing_step
+    wraparound = True
+    if(wraparound):
+        title = "with wraparound"
+    else:
+        title = "without wraparound"
     # ----------------------------------
 
     # 3. Create the initial matrix using the specified probability
@@ -289,9 +245,9 @@ if __name__ == "__main__":
         # 4. Run the simulation, passing the chosen algorithm function
         run_simulation(
             initial_matrix=initial_matrix,
-            algorithm_step_func=algorithm_to_run,
+            algorithm_step_func=block_step,
             num_iterations=num_iterations,
-            title_prefix=f"{matrix_size}x{matrix_size} Matrix ({algorithm_to_run.__name__})",
+            title_prefix=f"{matrix_size}x{matrix_size} Matrix ({title})",
         )
     except ValueError as ve:
         print(f"Error setting up simulation: {ve}")
