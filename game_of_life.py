@@ -3,6 +3,16 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import time
 import random
+from matplotlib.widgets import Button
+
+# Global variable to control the simulation
+paused = False
+
+
+def toggle_pause(event):
+    """Toggle the paused state of the simulation."""
+    global paused
+    paused = not paused
 
 
 # --- Matrix Creation ---
@@ -10,15 +20,15 @@ def create_random_binary_matrix(n, probability_of_one=0.5):
     """Creates an n x n NumPy array with 0s and 1s based on probability.
 
     Args:
-      n (int): Dimension of the square matrix.
-      probability_of_one (float): The probability (between 0.0 and 1.0)
-                                  for a cell to be initialized as 1. Defaults to 0.5.
+        n (int): Dimension of the square matrix.
+        probability_of_one (float): The probability (between 0.0 and 1.0)
+                                        for a cell to be initialized as 1. Defaults to 0.5.
 
     Returns:
-      np.ndarray: The generated n x n matrix.
+        np.ndarray: The generated n x n matrix.
 
     Raises:
-      ValueError: If probability_of_one is not between 0.0 and 1.0.
+        ValueError: If probability_of_one is not between 0.0 and 1.0.
     """
     if not 0.0 <= probability_of_one <= 1.0:
         raise ValueError("Probability must be between 0.0 and 1.0")
@@ -36,9 +46,7 @@ def visualize_matrix(matrix, title="Matrix Visualization"):
     cmap = mcolors.ListedColormap(["white", "black"])
     bounds = [-0.5, 0.5, 1.5]
     norm = mcolors.BoundaryNorm(bounds, cmap.N)
-    im = ax.imshow(
-        matrix, cmap=cmap, norm=norm, interpolation="nearest"
-    )
+    im = ax.imshow(matrix, cmap=cmap, norm=norm, interpolation="nearest")
     ax.set_xticks(np.arange(matrix.shape[1] + 1) - 0.5, minor=True)
     ax.set_yticks(np.arange(matrix.shape[0] + 1) - 0.5, minor=True)
     ax.grid(which="minor", color="grey", linestyle="-", linewidth=0.5)
@@ -46,9 +54,15 @@ def visualize_matrix(matrix, title="Matrix Visualization"):
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_title(title)
+
+    # pause/continue button
+    ax_button = plt.axes([0.81, 0.05, 0.1, 0.075])
+    btn = Button(ax_button, "Pause")
+    btn.on_clicked(toggle_pause)
+
     plt.ion()
     plt.show()
-    return fig, ax, im
+    return fig, ax, im, btn
 
 
 def update_visualization(im, matrix):
@@ -56,44 +70,110 @@ def update_visualization(im, matrix):
     im.set_data(matrix)
     plt.draw()
     # Adjust pause duration for desired animation speed
-    plt.pause(0.5)  # Reduced pause for potentially faster algorithms
+    plt.pause(0.8)  # Reduced pause for potentially faster algorithms
 
 
-# --- Algorithm Logic Examples ---
-def random_flip_step(matrix):
+def block_step(matrix, iteration):
     """
-    Example Algorithm Function: Flips a single random cell in the matrix.
+    Does the algorithm described in the exercise. without wraparound.
 
     Args:
-      matrix (np.ndarray): The current state of the matrix.
-
+        matrix (np.ndarray): The current state of the matrix.
+        iteration (int): The current iteration number.
     Returns:
-      np.ndarray: The next state of the matrix.
+        np.ndarray: a new matrix of the next phase.
     """
     # Important: Work on a copy to avoid modifying the input matrix directly
-    # if the caller might reuse the old state.
     new_matrix = matrix.copy()
     n = new_matrix.shape[0]
-    if n > 0:  # Avoid error on empty matrix
-        row = random.randint(0, n - 1)
-        col = random.randint(0, n - 1)
-        new_matrix[row, col] = 1 - new_matrix[row, col]  # Flip 0 to 1 or 1 to 0
+    m = new_matrix.shape[1]
+    block_start = 1 - (iteration % 2)  # Start with the first or second block
+
+    # Iterate over each first cell in a matrix of 2x2 blocks
+    for i in range(block_start, n - block_start, 2):
+        for j in range(block_start, m - block_start, 2):
+            # Count the number of 1s in the neighborhood (4 directions)
+            count = (
+                new_matrix[i, j]
+                + new_matrix[i, j + 1]
+                + new_matrix[i + 1, j + 1]
+                + new_matrix[i + 1, j]
+            )
+            # Apply rules based on count
+            if count == 0 or count == 1 or count == 4:  # 0, 1, or 4 ones -> flip all
+                new_matrix[i, j] = 1 - new_matrix[i, j]
+                new_matrix[i, j + 1] = 1 - new_matrix[i, j + 1]
+                new_matrix[i + 1, j] = 1 - new_matrix[i + 1, j]
+                new_matrix[i + 1, j + 1] = 1 - new_matrix[i + 1, j + 1]
+            elif count == 2:
+                continue  # No change needed for 2 ones
+            elif count == 3:  # 3 ones -> flip all and then rotate in 180 degrees
+                new_matrix[i, j] = 1 - new_matrix[i, j]
+                new_matrix[i, j + 1] = 1 - new_matrix[i, j + 1]
+                new_matrix[i + 1, j] = 1 - new_matrix[i + 1, j]
+                new_matrix[i + 1, j + 1] = 1 - new_matrix[i + 1, j + 1]
+                # Rotate 180 degrees
+                new_matrix[i, j], new_matrix[i + 1, j + 1] = (
+                    new_matrix[i + 1, j + 1],
+                    new_matrix[i, j],
+                )
+                new_matrix[i, j + 1], new_matrix[i + 1, j] = (
+                    new_matrix[i + 1, j],
+                    new_matrix[i, j + 1],
+                )
+
     return new_matrix
 
-
-def do_nothing_step(matrix):
+def block_step_wraparound(matrix, iteration):
     """
-    Example Algorithm Function: Returns the matrix unchanged. Useful for testing setup.
+    Does the algorithm described in the exercise. with wraparound.
 
     Args:
-      matrix (np.ndarray): The current state of the matrix.
-
+        matrix (np.ndarray): The current state of the matrix.
+        iteration (int): The current iteration number.
     Returns:
-      np.ndarray: The same matrix.
+        np.ndarray: a new matrix of the next phase.
     """
-    # Can return the same object if algorithm guarantees no side effects,
-    # otherwise return matrix.copy()
-    return matrix
+    # Important: Work on a copy to avoid modifying the input matrix directly
+    new_matrix = matrix.copy()
+    n = new_matrix.shape[0]
+    m = new_matrix.shape[1]
+    block_start = 1 - (iteration % 2)  # Start with the first or second block
+
+    # Iterate over each first cell in a matrix of 2x2 blocks
+    for i in range(block_start, n, 2):
+        for j in range(block_start, m, 2):
+            # Count the number of 1s in the neighborhood (4 directions)
+            count = (
+                new_matrix[i, j]
+                + new_matrix[i, (j + 1) % m]
+                + new_matrix[(i + 1) % n, (j + 1) % m]
+                + new_matrix[(i + 1) % n, j]
+            )
+            # Apply rules based on count
+            if count == 0 or count == 1 or count == 4:  # 0, 1, or 4 ones -> flip all
+                new_matrix[i, j] = 1 - new_matrix[i, j]
+                new_matrix[i, (j + 1) % m] = 1 - new_matrix[i, (j + 1) % m]
+                new_matrix[(i + 1) % n, j] = 1 - new_matrix[(i + 1) % n, j]
+                new_matrix[(i + 1) % n, (j + 1) % m] = 1 - new_matrix[(i + 1) % n, (j + 1) % m]
+            elif count == 2:
+                continue  # No change needed for 2 ones
+            elif count == 3:  # 3 ones -> flip all and then rotate in 180 degrees
+                new_matrix[i, j] = 1 - new_matrix[i, j]
+                new_matrix[i, (j + 1) % m] = 1 - new_matrix[i, (j + 1) % m]
+                new_matrix[(i + 1) % n, j] = 1 - new_matrix[(i + 1) % n, j]
+                new_matrix[(i + 1) % n, (j + 1) % m] = 1 - new_matrix[(i + 1) % n, (j + 1) % m]
+                # Rotate 180 degrees
+                new_matrix[i, j], new_matrix[(i + 1) % n, (j + 1) % m] = (
+                    new_matrix[(i + 1) % n, (j + 1) % m],
+                    new_matrix[i, j],
+                )
+                new_matrix[i, (j + 1) % m], new_matrix[(i + 1) % n, j] = (
+                    new_matrix[(i + 1) % n, j],
+                    new_matrix[i, (j + 1) % m],
+                )
+
+    return new_matrix
 
 
 # --- Simulation Runner ---
@@ -107,31 +187,39 @@ def run_simulation(
     Runs the simulation loop, applying the algorithm logic and updating visualization.
 
     Args:
-      initial_matrix (np.ndarray): The starting matrix.
-      algorithm_step_func (callable): A function that takes the current matrix
-                                      (np.ndarray) as input and returns the matrix
-                                      (np.ndarray) for the next iteration.
-      num_iterations (int): The number of steps to simulate.
-      title_prefix (str): Base text for the plot title.
+        initial_matrix (np.ndarray): The starting matrix.
+        algorithm_step_func (callable): A function that takes the current matrix
+                                            (np.ndarray) as input and returns the matrix
+                                            (np.ndarray) for the next iteration.
+        num_iterations (int): The number of steps to simulate.
+        title_prefix (str): Base text for the plot title.
     """
+    global paused  # Access the global paused variable
     current_matrix = initial_matrix.copy()  # Start with a copy
     matrix_size_n = current_matrix.shape[0]
     matrix_size_m = current_matrix.shape[1]
 
     try:
         # Set up the initial visualization
-        fig, ax, im = visualize_matrix(
+        fig, ax, im, btn = visualize_matrix(
             current_matrix, title=f"{title_prefix} - Initial State"
         )
 
         # Simulation Loop
         print(f"\nStarting simulation with {algorithm_step_func.__name__}...")
         for i in range(num_iterations):
+            # Check if simulation is paused
+            while paused:
+                plt.pause(0.1)
+                if not plt.fignum_exists(fig.number):
+                    print("Plot window closed manually. Stopping simulation.")
+                    return
+
             # --- Apply the provided algorithm logic ---
-            next_matrix = algorithm_step_func(current_matrix)
+            next_matrix = algorithm_step_func(current_matrix, i)
             # ------------------------------------------
 
-            # Basic validation (optional but good practice)
+            # Basic validation of the returned matrix
             if not isinstance(next_matrix, np.ndarray):
                 print(
                     f"Error: Algorithm function did not return a NumPy array at iteration {i+1}. Stopping."
@@ -141,7 +229,6 @@ def run_simulation(
                 print(
                     f"Warning: Matrix dimensions changed from ({matrix_size_n},{matrix_size_m}) to {next_matrix.shape} at iteration {i+1}. Stopping."
                 )
-                # You might want different handling, e.g., trying to resize the plot
                 break
 
             current_matrix = next_matrix  # Update the state for the next iteration
@@ -158,7 +245,7 @@ def run_simulation(
                 break
 
         print("\nSimulation finished or stopped.")
-        print("Final Matrix:\n", current_matrix)
+    #    print("Final Matrix:\n", current_matrix)
 
     except Exception as e:
         print(f"\nAn error occurred during simulation: {e}")
@@ -182,13 +269,13 @@ def run_simulation(
 # --- Main Execution Block ---
 if __name__ == "__main__":
     # 1. Parameters
-    matrix_size = 100  # asked for 100 x 100
+    matrix_size = 8  # asked for 100 x 100
     probability_one = 0.5  # e.g., 50% chance for a cell to start as 1
     num_iterations = 100  # Number of simulation steps
 
     # --- CHOOSE YOUR ALGORITHM HERE ---
     # Assign the function name of the algorithm you want to run
-    algorithm_to_run = random_flip_step
+    algorithm_to_run = block_step_wraparound
     # algorithm_to_run = do_nothing_step
     # ----------------------------------
 
@@ -196,8 +283,7 @@ if __name__ == "__main__":
     try:
         initial_matrix = create_random_binary_matrix(matrix_size, probability_one)
         print(
-            f"Initial Matrix ({matrix_size}x{matrix_size}) with P(1)={probability_one}:\n",
-            initial_matrix,
+            f"Initial Matrix ({matrix_size}x{matrix_size}) with P(1)={probability_one}\n"
         )
 
         # 4. Run the simulation, passing the chosen algorithm function
