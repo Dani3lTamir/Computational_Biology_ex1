@@ -38,6 +38,13 @@ def create_random_binary_matrix(n, probability_of_one=0.5):
     random_floats = np.random.rand(n, n)
     # Where float < probability, set to 1 (True), otherwise 0 (False)
     # Then convert boolean array to integer array (True->1, False->0)
+
+    # #create intersting matrix for 3
+    # for i in range(n):
+    #     for j in range(n):
+    #         random_floats[i,j] = j%2
+    # random_floats[0,0] = 1
+    # return (random_floats).astype(int)
     return (random_floats < probability_of_one).astype(int)
 
 
@@ -224,9 +231,9 @@ def run_simulation(
 # --- Main Execution Block ---
 if __name__ == "__main__":
     # 1. Parameters
-    matrix_size = 4  # asked for 100 x 100
-    probability_one = 0.5  # e.g., 50% chance for a cell to start as 1
-    num_iterations = 100  # Number of simulation steps
+    matrix_size = 100 
+    probability_one = 0.5  # chance for a cell to start as 1
+    num_iterations = 250
 
     # if got "wraparound" in cli do the wraparound version, otherwise no
     if(len(sys.argv) > 1):
@@ -251,7 +258,7 @@ if __name__ == "__main__":
             initial_matrix=initial_matrix,
             algorithm_step_func=block_step,
             num_iterations=num_iterations,
-            title_prefix=f"{matrix_size}x{matrix_size} Matrix ({title})",
+            title_prefix=f"{matrix_size}x{matrix_size} Matrix, P(1)={probability_one} ({title})",
         )
     except ValueError as ve:
         print(f"Error setting up simulation: {ve}")
