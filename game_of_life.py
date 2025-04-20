@@ -1,13 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import sys
 import time
 import random
 from matplotlib.widgets import Button
 
 # Global variable to control the simulation
 paused = False
-wraparound = True
+wraparound = False
 
 
 def toggle_pause(event):
@@ -227,8 +228,11 @@ if __name__ == "__main__":
     probability_one = 0.5  # e.g., 50% chance for a cell to start as 1
     num_iterations = 100  # Number of simulation steps
 
-    # --- CHOOSE YOUR ALGORITHM HERE ---
-    wraparound = True
+    # if got "wraparound" in cli do the wraparound version, otherwise no
+    if(len(sys.argv) > 1):
+        if sys.argv[1] == "wraparound":
+            wraparound = True
+    
     if(wraparound):
         title = "with wraparound"
     else:
