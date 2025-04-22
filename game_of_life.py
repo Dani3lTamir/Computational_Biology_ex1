@@ -4,7 +4,7 @@ import matplotlib.colors as mcolors
 import sys
 import time
 import random
-from matplotlib.widgets import Button, TextBox, CheckButtons
+from matplotlib.widgets import Button, TextBox, CheckButtons, RadioButtons
 
 # Global variables to control the simulation
 paused = True  # Start paused to allow configuration
@@ -15,12 +15,15 @@ stability = 0
 max_iterations = 250
 matrix_size = 100  # Default size
 probability_one = 0.5
+initial_pattern = 'random'  
 
 # Initialize with default values that will be overwritten
 fig, ax, im = None, None, None
 initial_matrix = None
 current_matrix = None
 size_text = None
+pattern_radio = None
+
 
 
 def toggle_pause(event):
@@ -41,6 +44,12 @@ def toggle_wraparound(label):
     update_title()
     plt.draw()
 
+def change_pattern(label):
+    """Change the initial pattern type."""
+    global initial_pattern, reset_requested
+    initial_pattern = label.lower()
+    reset_requested = True
+    plt.draw()
 
 def reset_simulation(event):
     """Reset the simulation to its initial state."""
@@ -75,7 +84,7 @@ def update_matrix_size(text):
     global matrix_size, reset_requested
     try:
         new_size = int(text)
-        if new_size > 0:
+        if new_size > 7 and new_size % 2 == 0: # Ensure size is even and at least 8x8
             matrix_size = new_size
             reset_requested = True
             update_title()
@@ -122,40 +131,23 @@ def create_random_binary_matrix(n, probability_of_one=0.5):
     return (np.random.rand(n, n) < probability_of_one).astype(int)
 
 
-def create_empty_matrix(n):
-    """Creates an n x n NumPy array initialized with zeros.
-
-    Args:
-        n (int): Dimension of the square matrix.
-
-    Returns:
-        np.ndarray: The generated n x n matrix.
-    """
-    return np.zeros((n, n), dtype=int)
 
 def create_horizontal_glider(n):
-    """Creates an n x n NumPy array initialized with ones.
-
-    Args:
-        n (int): Dimension of the square matrix.
-
-    Returns:
-        np.ndarray: The generated n x n matrix.
-    """
-    x = np.ones((n, n), dtype=int)
-    offset = n // 2
-
-    x[2  + offset,2  + offset] = 0
-    x[3 + offset,3 + offset] = 0
-    x[3 + offset,4 + offset] = 0
-    x[2 + offset,5 + offset] = 0
-    return x
+    """Creates an n x n matrix with a horizontal glider pattern."""
+    matrix = np.ones((n, n), dtype=int)
+    center = n // 2
+    # Glider pattern (adjust positions if needed)
+    matrix[center, center] = 0
+    matrix[center+1, center+1] = 0
+    matrix[center+1, center+2] = 0
+    matrix[center, center+3] = 0
+    return matrix
 
 
 # --- Visualization Functions ---
 def setup_visualization(matrix, title="Matrix Visualization"):
     """Initializes the visualization of the matrix."""
-    global fig, ax, im, pause_button, reset_button, wrap_check, iter_text, size_text
+    global fig, ax, im, pause_button, reset_button, wrap_check, iter_text, size_text, pattern_radio
 
     fig, ax = plt.subplots(figsize=(10, 8))
     plt.subplots_adjust(bottom=0.25)  # Increased bottom margin for additional controls
@@ -176,7 +168,7 @@ def setup_visualization(matrix, title="Matrix Visualization"):
     update_title()
 
     # Create control buttons - arranged in two rows
-    # First row of controls
+    # Size and iteration and pattern inputs
     ax_size = plt.axes([0.28, 0.12, 0.15, 0.05])
     size_text = TextBox(ax_size, "Size (n):", initial=str(matrix_size))
     size_text.on_submit(update_matrix_size)
@@ -184,9 +176,13 @@ def setup_visualization(matrix, title="Matrix Visualization"):
     ax_iter = plt.axes([0.63, 0.12, 0.15, 0.05])
     iter_text = TextBox(ax_iter, "Generations:", initial=str(max_iterations))
     iter_text.on_submit(update_max_iterations)
+    
+    ax_pattern = plt.axes([0.8, 0.15, 0.2, 0.1])
+    pattern_radio = RadioButtons(ax_pattern, ('Random', 'Glider'), active=0)
+    pattern_radio.on_clicked(change_pattern)
 
-    # Second row of controls
 
+    # Control buttons
     ax_reset = plt.axes([0.1, 0.05, 0.15, 0.05])
     reset_button = Button(ax_reset, "Reset")
     reset_button.on_clicked(reset_simulation)
@@ -277,12 +273,17 @@ def run_simulation():
     while True:
         # Handle reset if requested
         if reset_requested:
-            current_matrix = create_horizontal_glider(matrix_size)
-            initial_matrix = current_matrix.copy()
             current_iteration = 0
-            reset_requested = False
+            
+            if initial_pattern == 'random':
+                initial_matrix = create_random_binary_matrix(matrix_size, probability_one)
+            else:
+                initial_matrix = create_horizontal_glider(matrix_size)
+                
+            current_matrix = initial_matrix.copy()
             im.set_data(current_matrix)
             im.set_extent([-0.5, matrix_size - 0.5, matrix_size - 0.5, -0.5])
+            reset_requested = False
             update_visualization()
 
         # Run simulation when not paused
