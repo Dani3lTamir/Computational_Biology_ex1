@@ -245,18 +245,18 @@ def block_step(matrix, iteration):
                 (i, (j - 1) % m),
                 ((i - 1) % n, (j - 1) % m),
             ]
-            count = sum(new_matrix[cell] for cell in grid_cells)
+            count = sum(matrix[cell] for cell in grid_cells)
 
             if count in {0, 1, 4}:  # Flip all
                 for cell in grid_cells:
-                    new_matrix[cell] = 1 - new_matrix[cell]
+                    new_matrix[cell] = 1 - matrix[cell]
                     
             elif count == 2:
                 continue  # No change needed for 2 ones
 
             elif count == 3:  # Flip all and rotate
                 for cell in grid_cells:
-                    new_matrix[cell] = 1 - new_matrix[cell]
+                    new_matrix[cell] = 1 - matrix[cell]
                 # Rotate 180 degrees
                 new_matrix[grid_cells[0]], new_matrix[grid_cells[3]] = (
                     new_matrix[grid_cells[3]],
