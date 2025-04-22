@@ -53,11 +53,12 @@ def change_pattern(label):
 
 def reset_simulation(event):
     """Reset the simulation to its initial state."""
-    global reset_requested, current_iteration, current_matrix, initial_matrix, paused
+    global reset_requested, current_iteration, current_matrix, initial_matrix, paused, stability
     reset_requested = True
     paused = True  # Pause the simulation
     pause_button.label.set_text("Start/Continue")
     current_iteration = 0
+    stability = 0
     initial_matrix = create_random_binary_matrix(matrix_size, probability_one)
     current_matrix = initial_matrix.copy()
     im.set_data(current_matrix)
@@ -106,8 +107,12 @@ def stability_calculator(old_matrix, new_matrix):
     """Calculates the stability of the matrix. summing the differences between the two matrices.
     Args:
         old_matrix (np.ndarray): The previous state of the matrix.
-        new_matrix (np.ndarray): The current state of the matrix."""
-    return np.sum(np.abs(old_matrix - new_matrix))
+        new_matrix (np.ndarray): The current state of the matrix.
+    Returns:
+        float: Stability value rounded to 4 decimal places
+    """
+    stability = 1 - ((np.sum(np.abs(old_matrix - new_matrix))) / matrix_size**2)
+    return np.around(stability, 4)
 
 
 # --- Matrix Creation ---
