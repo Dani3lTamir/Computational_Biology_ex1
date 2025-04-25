@@ -93,6 +93,19 @@ def update_matrix_size(text):
     except ValueError:
         pass  # Ignore invalid input
 
+def update_probability(text):
+    """Update the probability of 1s in the random matrix."""
+    global probability_one, reset_requested
+    try:
+        new_prob = float(text)
+        if 0.0 <= new_prob <= 1.0:
+            probability_one = new_prob
+            reset_requested = True
+            update_title()
+            plt.draw()
+    except ValueError:
+        pass  # Ignore invalid input
+
 
 def update_title():
     """Update the plot title with current parameters."""
@@ -148,11 +161,19 @@ def create_horizontal_glider(n):
     matrix[center, center+3] = 0
     return matrix
 
+def create_zebra_pattern(n):
+    """Creates an n x n matrix with a zebra pattern."""
+    matrix = np.zeros((n, n), dtype=int)
+    for i in range(n):
+        for j in range(0, n, 2):
+            matrix[i, j] = 1 
+    return matrix
+
 
 # --- Visualization Functions ---
 def setup_visualization(matrix, title="Matrix Visualization"):
     """Initializes the visualization of the matrix."""
-    global fig, ax, im, pause_button, reset_button, wrap_check, iter_text, size_text, pattern_radio
+    global fig, ax, im, pause_button, reset_button, wrap_check, iter_text, size_text, prob_text, pattern_radio
 
     fig, ax = plt.subplots(figsize=(10, 8))
     plt.subplots_adjust(bottom=0.25)  # Increased bottom margin for additional controls
@@ -173,17 +194,22 @@ def setup_visualization(matrix, title="Matrix Visualization"):
     update_title()
 
     # Create control buttons - arranged in two rows
-    # Size and iteration and pattern inputs
-    ax_size = plt.axes([0.28, 0.12, 0.15, 0.05])
+    # Size, iteration, randomness and pattern inputs    
+    ax_size = plt.axes([0.28, 0.12, 0.03, 0.05])
     size_text = TextBox(ax_size, "Size (n):", initial=str(matrix_size))
     size_text.on_submit(update_matrix_size)
 
-    ax_iter = plt.axes([0.63, 0.12, 0.15, 0.05])
+    ax_iter = plt.axes([0.53, 0.12, 0.03, 0.05])
     iter_text = TextBox(ax_iter, "Generations:", initial=str(max_iterations))
     iter_text.on_submit(update_max_iterations)
     
+    ax_prob = plt.axes([0.75, 0.12, 0.03, 0.05])
+    prob_text = TextBox(ax_prob, "Random P(1):", initial=str(probability_one))
+    prob_text.on_submit(update_probability)
+
+    
     ax_pattern = plt.axes([0.8, 0.15, 0.2, 0.1])
-    pattern_radio = RadioButtons(ax_pattern, ('Random', 'Glider'), active=0)
+    pattern_radio = RadioButtons(ax_pattern, ('Random', 'Glider', 'Zebra Pattern'), active=0)
     pattern_radio.on_clicked(change_pattern)
 
 
@@ -282,8 +308,10 @@ def run_simulation():
             
             if initial_pattern == 'random':
                 initial_matrix = create_random_binary_matrix(matrix_size, probability_one)
-            else:
+            elif initial_pattern == 'glider':
                 initial_matrix = create_horizontal_glider(matrix_size)
+            elif initial_pattern == 'zebra pattern':
+                initial_matrix = create_zebra_pattern(matrix_size)
                 
             current_matrix = initial_matrix.copy()
             im.set_data(current_matrix)
